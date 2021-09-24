@@ -101,7 +101,6 @@ namespace Grand.Web.Admin.Controllers
 
         #region Utilities
 
-
         protected async Task ClearCache()
         {
             await _cacheBase.Clear();
@@ -575,6 +574,7 @@ namespace Grand.Web.Admin.Controllers
             Success(_translationService.GetResource("Admin.Configuration.Updated"));
             return RedirectToAction("Media");
         }
+
         [HttpPost]
         public async Task<IActionResult> ChangePictureStorage()
         {
@@ -585,6 +585,21 @@ namespace Grand.Web.Admin.Controllers
             //save the new setting value
             await _settingService.SaveSetting(mediaSettings);
 
+            //save picture
+            await SavePictureStorage(storeIdDb);
+
+            //activity log
+            await _customerActivityService.InsertActivity("EditSettings", "", _translationService.GetResource("ActivityLog.EditSettings"));
+
+            //now clear cache
+            await ClearCache();
+
+            Success(_translationService.GetResource("Admin.Configuration.Updated"));
+            return RedirectToAction("Media");
+        }
+
+        private async Task SavePictureStorage(bool storeIdDb)
+        {
             int pageIndex = 0;
             const int pageSize = 100;
             try
@@ -615,14 +630,6 @@ namespace Grand.Web.Admin.Controllers
             {
             }
 
-            //activity log
-            await _customerActivityService.InsertActivity("EditSettings", "", _translationService.GetResource("ActivityLog.EditSettings"));
-
-            //now clear cache
-            await ClearCache();
-
-            Success(_translationService.GetResource("Admin.Configuration.Updated"));
-            return RedirectToAction("Media");
         }
 
         public async Task<IActionResult> Customer()
@@ -690,16 +697,7 @@ namespace Grand.Web.Admin.Controllers
 
             model.StoreInformationSettings.AvailableStoreThemes = _themeProvider
                 .GetConfigurations()
-                .Select(x => new GeneralCommonSettingsModel.StoreInformationSettingsModel.ThemeConfigurationModel {
-                    ThemeTitle = x.Title,
-                    ThemeName = x.Name,
-                    ThemeVersion = x.Version,
-                    PreviewImageUrl = x.PreviewImageUrl,
-                    PreviewText = x.PreviewText,
-                    SupportRtl = x.SupportRtl,
-                    Selected = x.Name.Equals(storeInformationSettings.DefaultStoreTheme, StringComparison.OrdinalIgnoreCase)
-                })
-                .ToList();
+                .Select(x => x.ToModel(storeInformationSettings.DefaultStoreTheme)).ToList();
 
             //common
             var commonSettings = _settingService.LoadSetting<CommonSettings>(storeScope);
@@ -829,7 +827,6 @@ namespace Grand.Web.Admin.Controllers
         }
 
         [HttpPost]
-        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> PushNotifications(PushNotificationsSettingsModel model)
         {
             var storeScope = await GetActiveStore();
@@ -857,7 +854,6 @@ namespace Grand.Web.Admin.Controllers
             if (System.IO.File.Exists(oryginalFilePath))
             {
                 string[] lines = System.IO.File.ReadAllLines(oryginalFilePath);
-
                 int i = 0;
                 foreach (var line in lines)
                 {
@@ -865,37 +861,30 @@ namespace Grand.Web.Admin.Controllers
                     {
                         lines[i] = "apiKey: \"" + model.PushApiKey + "\",";
                     }
-
                     if (line.Contains("authDomain"))
                     {
                         lines[i] = "authDomain: \"" + model.AuthDomain + "\",";
                     }
-
                     if (line.Contains("databaseURL"))
                     {
                         lines[i] = "databaseURL: \"" + model.DatabaseUrl + "\",";
                     }
-
                     if (line.Contains("projectId"))
                     {
                         lines[i] = "projectId: \"" + model.ProjectId + "\",";
                     }
-
                     if (line.Contains("storageBucket"))
                     {
                         lines[i] = "storageBucket: \"" + model.StorageBucket + "\",";
                     }
-
                     if (line.Contains("messagingSenderId"))
                     {
                         lines[i] = "messagingSenderId: \"" + model.SenderId + "\",";
                     }
-
                     if (line.Contains("appId"))
                     {
                         lines[i] = "appId: \"" + model.AppId + "\",";
                     }
-
                     i++;
                 }
                 System.IO.File.WriteAllLines(savedFilePath, lines);
@@ -904,6 +893,7 @@ namespace Grand.Web.Admin.Controllers
                 throw new ArgumentNullException($"{oryginalFilePath} not exist");
 
         }
+        
         public IActionResult AdminSearch()
         {
             var settings = _settingService.LoadSetting<AdminSearchSettings>();
@@ -912,7 +902,6 @@ namespace Grand.Web.Admin.Controllers
         }
 
         [HttpPost]
-        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> AdminSearch(AdminSearchSettingsModel model)
         {
             var settings = _settingService.LoadSetting<AdminSearchSettings>();
@@ -932,13 +921,13 @@ namespace Grand.Web.Admin.Controllers
         {
             var settings = _settingService.LoadSetting<SystemSettings>();
 
-            var model = new SystemSettingsModel();
-
-            //order ident
-            model.OrderIdent = await _mediator.Send(new MaxOrderNumberCommand());
-            //system settings
-            model.DaysToCancelUnpaidOrder = settings.DaysToCancelUnpaidOrder;
-            model.DeleteGuestTaskOlderThanMinutes = settings.DeleteGuestTaskOlderThanMinutes;
+            var model = new SystemSettingsModel {
+                //order ident
+                OrderIdent = await _mediator.Send(new MaxOrderNumberCommand()),
+                //system settings
+                DaysToCancelUnpaidOrder = settings.DaysToCancelUnpaidOrder,
+                DeleteGuestTaskOlderThanMinutes = settings.DeleteGuestTaskOlderThanMinutes
+            };
 
             //area admin settings
             var adminsettings = _settingService.LoadSetting<AdminAreaSettings>();
@@ -961,7 +950,6 @@ namespace Grand.Web.Admin.Controllers
         }
 
         [HttpPost]
-        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> SystemSetting(SystemSettingsModel model)
         {
             //system 
@@ -969,7 +957,6 @@ namespace Grand.Web.Admin.Controllers
             settings.DaysToCancelUnpaidOrder = model.DaysToCancelUnpaidOrder;
             settings.DeleteGuestTaskOlderThanMinutes = model.DeleteGuestTaskOlderThanMinutes;
             await _settingService.SaveSetting(settings);
-
 
             //order ident
             if (model.OrderIdent.HasValue && model.OrderIdent.Value > 0)
@@ -983,9 +970,7 @@ namespace Grand.Web.Admin.Controllers
             adminAreaSettings.GridPageSizes = model.GridPageSizes;
             adminAreaSettings.UseIsoDateTimeConverterInJson = model.UseIsoDateTimeConverterInJson;
             adminAreaSettings.HideStoreColumn = model.HideStoreColumn;
-
             await _settingService.SaveSetting(adminAreaSettings);
-
 
             //language settings 
             var langsettings = _settingService.LoadSetting<LanguageSettings>();
