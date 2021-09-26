@@ -649,15 +649,15 @@ namespace Grand.Web.Admin.Controllers
 
                 //a vendor should have access only to his products
                 model.IsLoggedInAsVendor = _workContext.CurrentVendor != null;
-                ViewBag.RefreshPage = true;
+                return Content("");
             }
             else
             {
                 Error(ModelState);
                 model = await _productViewModelService.PrepareRelatedProductModel();
                 model.ProductId = model.ProductId;
+                return View(model);
             }
-            return View(model);
         }
 
         #endregion
@@ -752,15 +752,15 @@ namespace Grand.Web.Admin.Controllers
                 }
                 //a vendor should have access only to his products
                 model.IsLoggedInAsVendor = _workContext.CurrentVendor != null;
-                ViewBag.RefreshPage = true;
+                return Content("");
             }
             else
             {
                 Error(ModelState);
                 model = await _productViewModelService.PrepareSimilarProductModel();
                 model.ProductId = model.ProductId;
+                return View(model);
             }
-            return View(model);
         }
 
         #endregion
@@ -856,15 +856,15 @@ namespace Grand.Web.Admin.Controllers
 
                 //a vendor should have access only to his products
                 model.IsLoggedInAsVendor = _workContext.CurrentVendor != null;
-                ViewBag.RefreshPage = true;
+                return Content("");
             }
             else
             {
                 Error(ModelState);
                 model = await _productViewModelService.PrepareBundleProductModel();
                 model.ProductId = model.ProductId;
+                return View(model);
             }
-            return View(model);
         }
 
         #endregion
@@ -951,17 +951,15 @@ namespace Grand.Web.Admin.Controllers
                 {
                     await _productViewModelService.InsertCrossSellProductModel(model);
                 }
-                //a vendor should have access only to his products
-                model.IsLoggedInAsVendor = _workContext.CurrentVendor != null;
-                ViewBag.RefreshPage = true;
+                return Content("");
             }
             else
             {
                 Error(ModelState);
                 model = await _productViewModelService.PrepareCrossSellProductModel();
                 model.ProductId = model.ProductId;
+                return View(model);
             }
-            return View(model);
         }
 
         #endregion
@@ -1047,17 +1045,15 @@ namespace Grand.Web.Admin.Controllers
                 {
                     await _productViewModelService.InsertRecommendedProductModel(model);
                 }
-                //a vendor should have access only to his products
-                model.IsLoggedInAsVendor = _workContext.CurrentVendor != null;
-                ViewBag.RefreshPage = true;
+                return Content("");
             }
             else
             {
                 Error(ModelState);
                 model = await _productViewModelService.PrepareRecommendedProductModel();
                 model.ProductId = model.ProductId;
+                return View(model);
             }
-            return View(model);
         }
 
         #endregion
@@ -1164,17 +1160,15 @@ namespace Grand.Web.Admin.Controllers
                 {
                     await _productViewModelService.InsertAssociatedProductModel(model);
                 }
-                //a vendor should have access only to his products
-                model.IsLoggedInAsVendor = _workContext.CurrentVendor != null;
-                ViewBag.RefreshPage = true;
+                return Content("");
             }
             else
             {
                 Error(ModelState);
                 model = await _productViewModelService.PrepareAssociatedProductModel();
                 model.ProductId = model.ProductId;
+                return View(model);
             }
-            return View(model);
         }
 
         #endregion
@@ -1361,8 +1355,7 @@ namespace Grand.Web.Admin.Controllers
 
                 await _productViewModelService.UpdateProductPicture(model);
 
-                ViewBag.RefreshPage = true;
-                return View(model);
+                return Content("");
             }
 
             Error(ModelState);
@@ -1829,16 +1822,16 @@ namespace Grand.Web.Admin.Controllers
 
                 var tierPrice = model.ToEntity(_dateTimeService);
                 await _productService.InsertTierPrice(tierPrice, product.Id);
-                ViewBag.RefreshPage = true;
-                return View(model);
+                
+                return Content("");
             }
             else
             {
                 Error(ModelState);
+                //If we got this far, something failed, redisplay form
+                await _productViewModelService.PrepareTierPriceModel(model);
+                return View(model);
             }
-            //If we got this far, something failed, redisplay form
-            await _productViewModelService.PrepareTierPriceModel(model);
-            return View(model);
         }
 
         [PermissionAuthorizeAction(PermissionActionName.Edit)]
@@ -1879,8 +1872,7 @@ namespace Grand.Web.Admin.Controllers
                 tierPrice = model.ToEntity(tierPrice, _dateTimeService);
                 await _productService.UpdateTierPrice(tierPrice, product.Id);
 
-                ViewBag.RefreshPage = true;
-                return View(model);
+                return Content("");
             }
             Error(ModelState);
             //stores
@@ -1968,8 +1960,7 @@ namespace Grand.Web.Admin.Controllers
                 else
                     await _productViewModelService.UpdateProductAttributeMappingModel(model);
 
-                ViewBag.RefreshPage = true;
-                return View(model);
+                return Content("");
             }
             Error(ModelState);
             model = await _productViewModelService.PrepareProductAttributeMappingModel(model);
@@ -2034,8 +2025,7 @@ namespace Grand.Web.Admin.Controllers
             if (ModelState.IsValid)
             {
                 await _productViewModelService.UpdateProductAttributeValidationRulesModel(productAttributeMapping, model);
-                ViewBag.RefreshPage = true;
-                return View(model);
+                return Content("");
             }
             Error(ModelState);
             model = await _productViewModelService.PrepareProductAttributeMappingModel(productAttributeMapping);
@@ -2090,8 +2080,7 @@ namespace Grand.Web.Admin.Controllers
                 formcollection.Add(item.Key, item.Value);
             }
             await _productViewModelService.UpdateProductAttributeConditionModel(product, productAttributeMapping, model, formcollection);
-            ViewBag.RefreshPage = true;
-            return View(model);
+            return Content("");
         }
 
         #endregion
@@ -2202,8 +2191,8 @@ namespace Grand.Web.Admin.Controllers
             if (ModelState.IsValid)
             {
                 await _productViewModelService.InsertProductAttributeValueModel(model);
-                ViewBag.RefreshPage = true;
-                return View(model);
+
+                return Content("");
             }
             //If we got this far, something failed, redisplay form
             await _productViewModelService.PrepareProductAttributeValueModel(product, model);
@@ -2270,8 +2259,7 @@ namespace Grand.Web.Admin.Controllers
             if (ModelState.IsValid)
             {
                 await _productViewModelService.UpdateProductAttributeValueModel(pav, model);
-                ViewBag.RefreshPage = true;
-                return View(model);
+                return Content("");
             }
             //If we got this far, something failed, redisplay form
             await _productViewModelService.PrepareProductAttributeValueModel(product, model);
@@ -2338,11 +2326,7 @@ namespace Grand.Web.Admin.Controllers
             if (_workContext.CurrentVendor != null && associatedProduct.VendorId != _workContext.CurrentVendor.Id && !await _groupService.IsStaff(_workContext.CurrentCustomer))
                 return Content("This is not your product");
 
-            model.IsLoggedInAsVendor = _workContext.CurrentVendor != null;
-            ViewBag.RefreshPage = true;
-            ViewBag.productId = associatedProduct.Id;
-            ViewBag.productName = associatedProduct.Name;
-            return View(model);
+            return Content("");
         }
 
         #endregion
@@ -2440,8 +2424,7 @@ namespace Grand.Web.Admin.Controllers
             var warnings = await _productViewModelService.InsertOrUpdateProductAttributeCombinationPopup(product, model, formcollection);
             if (!warnings.Any())
             {
-                ViewBag.RefreshPage = true;
-                return View(model);
+                return Content("");
             }
             //If we got this far, something failed, redisplay form
             await _productViewModelService.PrepareAddProductAttributeCombinationModel(model, product);
