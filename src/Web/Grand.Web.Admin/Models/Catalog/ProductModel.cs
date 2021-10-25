@@ -27,7 +27,6 @@ namespace Grand.Web.Admin.Models.Catalog
             AvailableProductAttributes = new List<SelectListItem>();
             AvailableUnits = new List<SelectListItem>();
             AddPictureModel = new ProductPictureModel();
-            AddSpecificationAttributeModel = new AddProductSpecificationAttributeModel();
             ProductWarehouseInventoryModels = new List<ProductWarehouseInventoryModel>();
             CalendarModel = new GenerateCalendarModel();
         }
@@ -404,8 +403,7 @@ namespace Grand.Web.Admin.Models.Catalog
         //discounts
         public List<DiscountModel> AvailableDiscounts { get; set; }
         public string[] SelectedDiscountIds { get; set; }
-        //add specification attribute model
-        public AddProductSpecificationAttributeModel AddSpecificationAttributeModel { get; set; }
+
         //multiple warehouses
         [GrandResourceDisplayName("Admin.Catalog.Products.ProductWarehouseInventory")]
         public IList<ProductWarehouseInventoryModel> ProductWarehouseInventoryModels { get; set; }
@@ -465,6 +463,8 @@ namespace Grand.Web.Admin.Models.Catalog
                 AvailableOptions = new List<SelectListItem>();
             }
 
+            public string Id { get; set; }
+
             [GrandResourceDisplayName("Admin.Catalog.Products.SpecificationAttributes.Fields.SpecificationAttribute")]
             public string SpecificationAttributeId { get; set; }
 
@@ -473,6 +473,9 @@ namespace Grand.Web.Admin.Models.Catalog
 
             [GrandResourceDisplayName("Admin.Catalog.Products.SpecificationAttributes.Fields.SpecificationAttributeOption")]
             public string SpecificationAttributeOptionId { get; set; }
+
+            [GrandResourceDisplayName("Admin.Catalog.Products.SpecificationAttributes.Fields.CustomName")]
+            public string CustomName { get; set; }
 
             [GrandResourceDisplayName("Admin.Catalog.Products.SpecificationAttributes.Fields.CustomValue")]
             public string CustomValue { get; set; }

@@ -28,14 +28,20 @@ import { FormCheckboxPlugin } from 'bootstrap-vue'
 Vue.use(FormCheckboxPlugin)
 import { FormRatingPlugin } from 'bootstrap-vue'
 Vue.use(FormRatingPlugin)
+import { FormFilePlugin } from 'bootstrap-vue'
+Vue.use(FormFilePlugin)
 import { ImagePlugin } from 'bootstrap-vue'
 Vue.use(ImagePlugin)
-import { NavbarPlugin } from 'bootstrap-vue'
-Vue.use(NavbarPlugin)
 import { ToastPlugin } from 'bootstrap-vue'
 Vue.use(ToastPlugin)
+import { AlertPlugin } from 'bootstrap-vue'
+Vue.use(AlertPlugin)
 import { TabsPlugin } from 'bootstrap-vue'
 Vue.use(TabsPlugin)
+import { CollapsePlugin } from 'bootstrap-vue'
+Vue.use(CollapsePlugin)
+import { TooltipPlugin } from 'bootstrap-vue'
+Vue.use(TooltipPlugin)
 
 import {
     BIcon,
@@ -90,7 +96,10 @@ import {
     BIconMoon,
     BIconSun,
     BIconFileEarmarkRichtext,
-    BIconHammer
+    BIconHammer,
+    BIconMic,
+    BIconMicMute,
+    BIconCheck
 } from 'bootstrap-vue'
 Vue.component('BIcon', BIcon)
 Vue.component('BIconAspectRatio', BIconAspectRatio)
@@ -145,15 +154,110 @@ Vue.component('BIconMoon', BIconMoon)
 Vue.component('BIconSun', BIconSun)
 Vue.component('BIconFileEarmarkRichtext', BIconFileEarmarkRichtext)
 Vue.component('BIconHammer', BIconHammer)
+Vue.component('BIconMic', BIconMic)
+Vue.component('BIconMicMute', BIconMicMute)
+Vue.component('BIconCheck', BIconCheck)
+
+import { ValidationObserver, ValidationProvider } from 'vee-validate';
+Vue.component('ValidationProvider', ValidationProvider);
+Vue.component('ValidationObserver', ValidationObserver);
+
+import { extend, configure  } from 'vee-validate';
+
+export const config = {
+    classes: {
+        valid: 'is-valid',
+        invalid: 'is-invalid'
+    },
+};
+
+configure(config);
+
+extend('confirmed', {
+    params: ['target'],
+    // Target here is the value of the target field
+    validate(value, { target }) {
+        return value === target;
+    },
+    message: (fieldName) => {
+        var text = vee_getMessage(fieldName, 'confirmed');
+        if (text) {
+            return text;
+        }
+        return 'The ' + fieldName + ' field confirmation does not match.'
+    }
+});
+
+extend('email', {
+    validate: value => {
+        // if the field is empty
+        if (!value) {
+            return true;
+        }
+        // if the field is not a valid email
+        if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(value)) {
+            return false;
+        }
+        // All is good
+        return true;
+    },
+    message: (fieldName) => {
+        var text = vee_getMessage(fieldName, 'email');
+        if (text) {
+            return text;
+        }
+        return 'This field must be a valid email.'
+    }
+});
+
+extend('required', {
+    params: ['allowFalse'],
+    validate(value, { allowFalse }) {
+        if (allowFalse !== undefined) {
+            if (value === true && !allowFalse) {
+                return {
+                    required: true,
+                    valid: ['', null, undefined].indexOf(value) === -1
+                }
+            }
+        }
+        else {
+            return {
+                required: true,
+                valid: ['', null, undefined].indexOf(value) === -1
+            };
+        }
+    },
+    computesRequired: true,
+    message: (fieldName) => {
+        var text = vee_getMessage(fieldName, 'required');
+        if (text) {
+            return text;
+        }
+        return 'The ' + fieldName + ' field is required.'
+    }
+});
+
+//ValidationExtend('min', min);
+//ValidationExtend('confirmed', confirmed);
+
+export function vee_getMessage(field, rule) {
+    var element = document.getElementsByName(field);
+    if (element && element[0]) {
+        var text = element[0].getAttribute('data-val-' + rule);
+        if (text)
+            return text;
+    }
+}
+// Override the default message.
+
+import VueGallerySlideshow from 'vue-gallery-slideshow'
 
 import axios from 'axios'
 import Pikaday from 'pikaday'
-import VeeValidate from 'vee-validate/dist/vee-validate.minimal'
-import VueGallerySlideshow from 'vue-gallery-slideshow'
 
 window.axios = require('axios').default;
 window.Pikaday = require('pikaday');
-window.VeeValidate = VeeValidate;
 window.VueGallerySlideshow = VueGallerySlideshow;
 
 import vueAwesomeCountdown from 'vue-awesome-countdown'

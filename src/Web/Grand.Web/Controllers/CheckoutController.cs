@@ -510,6 +510,7 @@ namespace Grand.Web.Controllers
                 else
                 {
                     //new address
+                    ModelState.Clear();
                     var model = new CheckoutBillingAddressModel();
                     await TryUpdateModelAsync(model.NewAddress, "BillingNewAddress");
 
@@ -521,8 +522,6 @@ namespace Grand.Web.Controllers
                         ModelState.AddModelError("", error);
                     }
 
-                    //validate model
-                    TryValidateModel(model.NewAddress);
                     if (!ModelState.IsValid)
                     {
                         //model is not valid. redisplay the form with errors
@@ -586,7 +585,7 @@ namespace Grand.Web.Controllers
             }
             catch (Exception exc)
             {
-                _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
+                _ = _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
                 return Json(new { error = 1, message = exc.Message });
             }
         }
@@ -675,9 +674,7 @@ namespace Grand.Web.Controllers
                         {
                             ModelState.AddModelError("", error);
                         }
-
-                        //validate model
-                        TryValidateModel(model.NewAddress);
+                        
                         if (!ModelState.IsValid)
                         {
                             var errors = ModelState.Values.SelectMany(v => v.Errors);
@@ -768,7 +765,7 @@ namespace Grand.Web.Controllers
             }
             catch (Exception exc)
             {
-                _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
+                _ = _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
                 return Json(new { error = 1, message = exc.Message });
             }
         }
@@ -841,7 +838,7 @@ namespace Grand.Web.Controllers
             }
             catch (Exception exc)
             {
-                _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
+                _ = _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
                 return Json(new { error = 1, message = exc.Message });
             }
         }
@@ -915,7 +912,7 @@ namespace Grand.Web.Controllers
             }
             catch (Exception exc)
             {
-                _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
+                _ = _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
                 return Json(new { error = 1, message = exc.Message });
             }
         }
@@ -974,7 +971,7 @@ namespace Grand.Web.Controllers
             }
             catch (Exception exc)
             {
-                _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
+                _ = _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
                 return Json(new { error = 1, message = exc.Message });
             }
         }
@@ -999,7 +996,9 @@ namespace Grand.Web.Controllers
                 var placeOrderResult = await _mediator.Send(new PlaceOrderCommand());
                 if (placeOrderResult.Success)
                 {
-                    await _customerActivityService.InsertActivity("PublicStore.PlaceOrder", "", _translationService.GetResource("ActivityLog.PublicStore.PlaceOrder"), placeOrderResult.PlacedOrder.Id);
+                    _ = _customerActivityService.InsertActivity("PublicStore.PlaceOrder", "",
+                        _workContext.CurrentCustomer, HttpContext.Connection?.RemoteIpAddress?.ToString(),
+                        _translationService.GetResource("ActivityLog.PublicStore.PlaceOrder"), placeOrderResult.PlacedOrder.Id);
 
                     var paymentMethod = _paymentService.LoadPaymentMethodBySystemName(placeOrderResult.PaymentTransaction.PaymentMethodSystemName);
                     if (paymentMethod == null)
@@ -1040,7 +1039,7 @@ namespace Grand.Web.Controllers
             }
             catch (Exception exc)
             {
-                _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
+                _ = _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
                 return Json(new { error = 1, message = exc.Message });
             }
         }
@@ -1084,7 +1083,7 @@ namespace Grand.Web.Controllers
             }
             catch (Exception exc)
             {
-                _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
+                _ = _logger.Warning(exc.Message, exc, _workContext.CurrentCustomer);
                 return Content(exc.Message);
             }
         }

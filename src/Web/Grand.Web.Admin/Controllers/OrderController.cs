@@ -265,7 +265,9 @@ namespace Grand.Web.Admin.Controllers
             try
             {
                 await _mediator.Send(new CancelOrderCommand() { Order = order, NotifyCustomer = true });
-                await _orderViewModelService.LogEditOrder(order.Id);
+
+                _ = _orderViewModelService.LogEditOrder(order.Id);
+
                 Success("Successfully canceled order");
                 return RedirectToAction("Edit", "Order", new { id = id });
             }
@@ -298,7 +300,7 @@ namespace Grand.Web.Admin.Controllers
             try
             {
                 await _orderViewModelService.SaveOrderTags(order, orderModel.OrderTags);
-                await _orderViewModelService.LogEditOrder(order.Id);
+                _ = _orderViewModelService.LogEditOrder(order.Id);
                 var model = new OrderModel();
                 await _orderViewModelService.PrepareOrderDetailsModel(model, order);
                 return RedirectToAction("Edit", "Order", new { id = order.Id });
@@ -349,7 +351,7 @@ namespace Grand.Web.Admin.Controllers
                     OrderId = order.Id,
 
                 });
-                await _orderViewModelService.LogEditOrder(order.Id);
+                _ = _orderViewModelService.LogEditOrder(order.Id);
                 model = new OrderModel();
                 await _orderViewModelService.PrepareOrderDetailsModel(model, order);
                 return RedirectToAction("Edit", "Order", new { id = id });
@@ -413,7 +415,9 @@ namespace Grand.Web.Admin.Controllers
             if (ModelState.IsValid)
             {
                 await _mediator.Send(new DeleteOrderCommand() { Order = order });
-                await customerActivityService.InsertActivity("DeleteOrder", id, _translationService.GetResource("ActivityLog.DeleteOrder"), order.Id);
+                _ = customerActivityService.InsertActivity("DeleteOrder", id,
+                    _workContext.CurrentCustomer, HttpContext.Connection?.RemoteIpAddress?.ToString(),
+                    _translationService.GetResource("ActivityLog.DeleteOrder"), order.Id);
                 return RedirectToAction("List");
             }
             Error(ModelState);
@@ -444,7 +448,9 @@ namespace Grand.Web.Admin.Controllers
                     if (!shipments.Any())
                     {
                         await _mediator.Send(new DeleteOrderCommand() { Order = order });
-                        await customerActivityService.InsertActivity("DeleteOrder", order.Id, _translationService.GetResource("ActivityLog.DeleteOrder"), order.Id);
+                        _ = customerActivityService.InsertActivity("DeleteOrder", order.Id,
+                            _workContext.CurrentCustomer, HttpContext.Connection?.RemoteIpAddress?.ToString(),
+                            _translationService.GetResource("ActivityLog.DeleteOrder"), order.Id);
                     }
                 }
             }
@@ -588,7 +594,7 @@ namespace Grand.Web.Admin.Controllers
                 OrderId = order.Id,
             });
 
-            await _orderViewModelService.LogEditOrder(order.Id);
+            _ = _orderViewModelService.LogEditOrder(order.Id);
             await _orderViewModelService.PrepareOrderDetailsModel(model, order);
             return RedirectToAction("Edit", "Order", new { id = id });
         }
@@ -621,7 +627,7 @@ namespace Grand.Web.Admin.Controllers
                 CreatedOnUtc = DateTime.UtcNow,
                 OrderId = order.Id,
             });
-            await _orderViewModelService.LogEditOrder(order.Id);
+            _ = _orderViewModelService.LogEditOrder(order.Id);
             await _orderViewModelService.PrepareOrderDetailsModel(model, order);
 
             //selected tab
@@ -650,7 +656,7 @@ namespace Grand.Web.Admin.Controllers
             order.UserFields = model.UserFields;
 
             await _orderService.UpdateOrder(order);
-            await _orderViewModelService.LogEditOrder(order.Id);
+            _ = _orderViewModelService.LogEditOrder(order.Id);
 
             await _orderViewModelService.PrepareOrderDetailsModel(model, order);
 
@@ -849,7 +855,7 @@ namespace Grand.Web.Admin.Controllers
 
             orderItem.DownloadCount = 0;
             await _orderService.UpdateOrder(order);
-            await _orderViewModelService.LogEditOrder(order.Id);
+            _ = _orderViewModelService.LogEditOrder(order.Id);
             var model = new OrderModel();
             await _orderViewModelService.PrepareOrderDetailsModel(model, order);
 
@@ -889,7 +895,7 @@ namespace Grand.Web.Admin.Controllers
 
             orderItem.IsDownloadActivated = !orderItem.IsDownloadActivated;
             await _orderService.UpdateOrder(order);
-            await _orderViewModelService.LogEditOrder(order.Id);
+            _ = _orderViewModelService.LogEditOrder(order.Id);
             var model = new OrderModel();
             await _orderViewModelService.PrepareOrderDetailsModel(model, order);
 
@@ -964,7 +970,7 @@ namespace Grand.Web.Admin.Controllers
                 orderItem.LicenseDownloadId = null;
             await _orderService.UpdateOrder(order);
 
-            await _orderViewModelService.LogEditOrder(order.Id);
+            _ = _orderViewModelService.LogEditOrder(order.Id);
             //success
             ViewBag.RefreshPage = true;
 
@@ -996,7 +1002,8 @@ namespace Grand.Web.Admin.Controllers
             //attach license
             orderItem.LicenseDownloadId = null;
             await _orderService.UpdateOrder(order);
-            await _orderViewModelService.LogEditOrder(order.Id);
+
+            _ = _orderViewModelService.LogEditOrder(order.Id);
 
             //success
             ViewBag.RefreshPage = true;

@@ -74,7 +74,8 @@ namespace Grand.Business.System.Services.ExportImport
                 new PropertyByName<Brand>("AllowCustomersToSelectPageSize", p => p.AllowCustomersToSelectPageSize),
                 new PropertyByName<Brand>("PageSizeOptions", p => p.PageSizeOptions),
                 new PropertyByName<Brand>("Published", p => p.Published),
-                new PropertyByName<Brand>("DisplayOrder", p => p.DisplayOrder)
+                new PropertyByName<Brand>("DisplayOrder", p => p.DisplayOrder),
+                new PropertyByName<Brand>("ExternalId", p => p.ExternalId)
             };
 
             return ExportToXlsx(properties, brands);
@@ -101,7 +102,8 @@ namespace Grand.Business.System.Services.ExportImport
                 new PropertyByName<Collection>("AllowCustomersToSelectPageSize", p => p.AllowCustomersToSelectPageSize),
                 new PropertyByName<Collection>("PageSizeOptions", p => p.PageSizeOptions),
                 new PropertyByName<Collection>("Published", p => p.Published),
-                new PropertyByName<Collection>("DisplayOrder", p => p.DisplayOrder)
+                new PropertyByName<Collection>("DisplayOrder", p => p.DisplayOrder),
+                new PropertyByName<Collection>("ExternalId", p => p.ExternalId)
             };
 
             return ExportToXlsx(properties, collections);

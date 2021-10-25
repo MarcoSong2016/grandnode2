@@ -45,12 +45,12 @@
             }
             @RenderBody()
             @await Component.InvokeAsync("Widget", new { widgetZone = "content_after" })
+            <vc:voice-navigation></vc:voice-navigation>
         </b-container>
         @await Component.InvokeAsync("Footer")
         <partial name="_Cookie" />
     </div>
     @await Component.InvokeAsync("Widget", new { widgetZone = "body_end_html_tag_before" })
     <resources asp-type="ScriptFooter" />
-
 </body>
 </html>
