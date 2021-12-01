@@ -2,11 +2,11 @@
 @{
     var lang = workContext.WorkingLanguage.LanguageCulture;
 }
-<template>
+<template v-if="voicenavigator.allowed">
     <button id="voicePageButton"
             @@touchstart="voicenavigator.recording = true"
-            @@touchcancel="voicenavigator.recording = false; $root.$emit('bv::hide::tooltip')"
-            @@touchend="voicenavigator.recording = false; $root.$emit('bv::hide::tooltip')"
+            @@touchcancel="voicenavigator.recording = false;"
+            @@touchend="voicenavigator.recording = false;"
             @@mousedown="voicenavigator.recording = true"
             @@mouseup="voicenavigator.recording = false"
             @@mouseleave="voicenavigator.recording = false"
@@ -19,8 +19,7 @@
         </template>
     </button>
     <b-alert :show="voicenavigator.recording"
-             class="position-fixed fixed-top m-0 rounded-0"
-             style="z-index: 2000;"
+             class="voice-alert position-fixed fixed-top m-0 rounded-0"
              :variant="voicenavigator.variant">
         <div class="recording-window">
             <div class="recording-aniamtion">
@@ -33,7 +32,7 @@
             </div>
             <input type="text" placeholder="@Loc["voicenavigator.voice.placeholder"]" v-model="voicenavigator.transcript" class="form-control" readonly />
         </div>
-        <small class="form-text text-muted w-100">@Loc["voicenavigator.voice.annotation"]</small>
+        <small class="form-text w-100">@Loc["voicenavigator.voice.annotation"]</small>
     </b-alert>
 </template>
 <script asp-location="Footer" asp-order="300">
@@ -82,7 +81,8 @@
             transcript: "",
             variant: "info",
             micMessage: "@Loc["voicenavigator.voice.holdtospeak"]",
-            voiceMessage: "@Loc["voicenavigator.voice.tryagain"]"
+            voiceMessage: "@Loc["voicenavigator.voice.tryagain"]",
+            allowed: true,
         }),
         methods: {
             startRecording() {
@@ -91,6 +91,32 @@
             stopRecording() {
                 this.recognition.stop();
             },
+            allowCheck() {
+                var checkPermission = navigator.permissions
+                if (checkPermission) {
+                    navigator.permissions.query(
+                        { name: 'microphone' }
+                    ).then(function (permissionStatus) {
+
+                        if (permissionStatus.state == "denied") {
+                            voicenavigator.allowed = false;
+                        } else {
+                            voicenavigator.allowed = true;
+                        }
+
+                        permissionStatus.onchange = function () {
+                            if (this.state == "denied") {
+                                voicenavigator.allowed = false;
+                            } else {
+                                voicenavigator.allowed = true;
+                            }
+                        }
+                    })
+                }
+            }
+        },
+        created() {
+            this.allowCheck();
         },
         watch: {
             recording: function () {
@@ -115,11 +141,10 @@
                                 const transcript = event.results[current][0].transcript;
                                 if (event.results[0].isFinal) {
                                     const concatTranscript = transcript.replace(/[`~!#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi, '').toLowerCase();
-                                    const transcriptArray = concatTranscript.split(' ');
                                     voicenavigator.transcript = transcript;
 
                                     for (const [key, element] of Object.entries(voicenavigator.commands)) {
-                                        const found = element.triggers.some(r => transcriptArray.includes(r));
+                                        const found = element.triggers.some(r => concatTranscript.includes(r));
 
                                         if (found) {
                                             voicenavigator.stopRecording();
@@ -143,6 +168,7 @@
                                 }
                             }
                         }
+
                     } else {
                         this.stopRecording();
                         this.transcript = "";
@@ -150,7 +176,7 @@
                         this.micMessage = '@Loc["voicenavigator.voice.holdtospeak"]';
                     }
                 } else {
-                    this.micMessage = '@Loc["voicenavigator.voice.notsupported"]';
+                    this.allowed = false;
                 }
             }
         }

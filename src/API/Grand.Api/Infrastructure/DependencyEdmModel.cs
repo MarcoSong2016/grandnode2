@@ -73,6 +73,13 @@ namespace Grand.Api.Infrastructure
             builder.ComplexType<ProductAttributeMappingDto>();
             builder.ComplexType<ProductAttributeValueDto>();
             builder.ComplexType<ProductAttributeCombinationDto>();
+            builder.ComplexType<ProductUpdateStock>();
+            builder.ComplexType<ProductCategoryDeleteDto>();
+            builder.ComplexType<ProductCollectionDeleteDto>();
+            builder.ComplexType<ProductPictureDeleteDto>();
+            builder.ComplexType<ProductSpecificationAttributeDeleteDto>();
+            builder.ComplexType<ProductTierPriceDeleteDto>();
+            builder.ComplexType<ProductAttributeMappingDeleteDto>();
 
             //update stock for product
             ActionConfiguration updateStock = product.Action("UpdateStock");
@@ -118,20 +125,12 @@ namespace Grand.Api.Infrastructure
             #region Product picture
             ActionConfiguration createPicture = product.Action("CreateProductPicture");
             createPicture.Parameter<string>(nameof(ProductPictureDto.PictureId)).Required();
-            createPicture.Parameter<string>(nameof(ProductPictureDto.MimeType)).Required();
-            createPicture.Parameter<string>(nameof(ProductPictureDto.SeoFilename)).Required();
-            createPicture.Parameter<string>(nameof(ProductPictureDto.AltAttribute)).Required();
             createPicture.Parameter<int>(nameof(ProductPictureDto.DisplayOrder)).Required();
-            createPicture.Parameter<string>(nameof(ProductPictureDto.TitleAttribute)).Required();
             createPicture.Returns<bool>();
 
             ActionConfiguration updatePicture = product.Action("UpdateProductPicture");
             updatePicture.Parameter<string>(nameof(ProductPictureDto.PictureId)).Required();
-            updatePicture.Parameter<string>(nameof(ProductPictureDto.MimeType)).Required();
-            updatePicture.Parameter<string>(nameof(ProductPictureDto.SeoFilename)).Required();
-            updatePicture.Parameter<string>(nameof(ProductPictureDto.AltAttribute)).Required();
             updatePicture.Parameter<int>(nameof(ProductPictureDto.DisplayOrder)).Required();
-            updatePicture.Parameter<string>(nameof(ProductPictureDto.TitleAttribute)).Required();
             updatePicture.Returns<bool>();
 
             ActionConfiguration deletePicture = product.Action("DeleteProductPicture");
@@ -275,6 +274,8 @@ namespace Grand.Api.Infrastructure
             builder.EntitySet<CustomerDto>("Customer");
             var customer = builder.EntityType<CustomerDto>();
             builder.ComplexType<AddressDto>();
+            builder.ComplexType<DeleteAddressDto>();
+            builder.ComplexType<PasswordDto>();
 
             ActionConfiguration addAddress = customer.Action("AddAddress");
             addAddress.Parameter<string>(nameof(AddressDto.Id)).Required();
@@ -289,7 +290,8 @@ namespace Grand.Api.Infrastructure
             addAddress.Parameter<string>(nameof(AddressDto.FirstName));
             addAddress.Parameter<string>(nameof(AddressDto.VatNumber));
             addAddress.Parameter<string>(nameof(AddressDto.PhoneNumber));
-            addAddress.Parameter<string>(nameof(AddressDto.CustomAttributes));
+            addAddress.Parameter<string>(nameof(AddressDto.Note));
+            addAddress.Parameter<int>(nameof(AddressDto.AddressType));
             addAddress.Parameter<DateTimeOffset>(nameof(AddressDto.CreatedOnUtc));
             addAddress.Parameter<string>(nameof(AddressDto.ZipPostalCode));
             addAddress.Parameter<string>(nameof(AddressDto.StateProvinceId));
@@ -308,18 +310,19 @@ namespace Grand.Api.Infrastructure
             updateAddress.Parameter<string>(nameof(AddressDto.FirstName));
             updateAddress.Parameter<string>(nameof(AddressDto.VatNumber));
             updateAddress.Parameter<string>(nameof(AddressDto.PhoneNumber));
-            updateAddress.Parameter<string>(nameof(AddressDto.CustomAttributes));
+            updateAddress.Parameter<string>(nameof(AddressDto.Note));
+            updateAddress.Parameter<int>(nameof(AddressDto.AddressType));
             updateAddress.Parameter<DateTimeOffset>(nameof(AddressDto.CreatedOnUtc));
             updateAddress.Parameter<string>(nameof(AddressDto.ZipPostalCode));
             updateAddress.Parameter<string>(nameof(AddressDto.StateProvinceId));
             updateAddress.Returns<AddressDto>();
 
             ActionConfiguration deleteAddress = customer.Action("DeleteAddress");
-            deleteAddress.Parameter<string>("addressId");
+            deleteAddress.Parameter<string>(nameof(DeleteAddressDto.AddressId));
             deleteAddress.Returns<bool>();
 
             ActionConfiguration changePassword = customer.Action("SetPassword");
-            changePassword.Parameter<string>("password");
+            changePassword.Parameter<string>(nameof(PasswordDto.Password));
             changePassword.Returns<bool>();
 
             #endregion

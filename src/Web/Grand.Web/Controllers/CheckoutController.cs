@@ -136,6 +136,7 @@ namespace Grand.Web.Controllers
                 ModelState.AddModelError("", warning);
             return warnings;
         }
+
         private async Task<CheckoutPaymentMethodModel> GetCheckoutPaymentMethodModel(IList<ShoppingCartItem> cart)
         {
             var filterByCountryId = "";
@@ -197,11 +198,11 @@ namespace Grand.Web.Controllers
 
         #endregion
 
-        public virtual async Task<IActionResult> Index([FromServices] IShoppingCartService shoppingCartService, [FromServices] IProductService productService)
+        public virtual async Task<IActionResult> Index()
         {
             var customer = _workContext.CurrentCustomer;
 
-            var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
+            var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
 
             if (!cart.Any())
                 return RedirectToRoute("ShoppingCart");
@@ -222,13 +223,13 @@ namespace Grand.Web.Controllers
             //validation (each shopping cart item)
             foreach (ShoppingCartItem sci in cart)
             {
-                var product = await productService.GetProductById(sci.ProductId);
+                var product = await _productService.GetProductById(sci.ProductId);
                 var sciWarnings = await _shoppingCartValidator.GetShoppingCartItemWarnings(customer, sci, product, new ShoppingCartValidatorOptions());
                 if (sciWarnings.Any())
                     return RedirectToRoute("ShoppingCart", new { checkoutAttributes = true });
             }
 
-            return RedirectToRoute("CheckoutOnePage");
+            return RedirectToRoute("Checkout");
         }
 
         public virtual async Task<IActionResult> Completed(string orderId)
@@ -238,7 +239,7 @@ namespace Grand.Web.Controllers
                 return Challenge();
 
             Order order = null;
-            if (!String.IsNullOrEmpty(orderId))
+            if (!string.IsNullOrEmpty(orderId))
             {
                 order = await _orderService.GetOrderById(orderId);
             }
@@ -308,7 +309,6 @@ namespace Grand.Web.Controllers
                 return await LoadStepAfterShippingMethod(cart);
             }
 
-
             return Json(new
             {
                 update_section = new UpdateSectionJsonModel
@@ -325,14 +325,14 @@ namespace Grand.Web.Controllers
         {
             //Check whether payment workflow is required
             //we ignore loyalty points during cart total calculation
-            bool isPaymentWorkflowRequired = await _mediator.Send(new GetIsPaymentWorkflowRequired() { Cart = cart, UseLoyaltyPoints = false });
+            var isPaymentWorkflowRequired = await _mediator.Send(new GetIsPaymentWorkflowRequired() { Cart = cart, UseLoyaltyPoints = false });
             if (isPaymentWorkflowRequired)
             {
                 //filter by country
-                string filterByCountryId = "";
+                var filterByCountryId = "";
                 if (_addressSettings.CountryEnabled &&
                     _workContext.CurrentCustomer.BillingAddress != null &&
-                    !String.IsNullOrEmpty(_workContext.CurrentCustomer.BillingAddress.CountryId))
+                    !string.IsNullOrEmpty(_workContext.CurrentCustomer.BillingAddress.CountryId))
                 {
                     filterByCountryId = _workContext.CurrentCustomer.BillingAddress.CountryId;
                 }
@@ -440,7 +440,7 @@ namespace Grand.Web.Controllers
         public virtual async Task<IActionResult> Start()
         {
             //validation
-            var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
+            var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
 
             if (!cart.Any())
                 return RedirectToRoute("ShoppingCart");
@@ -487,32 +487,31 @@ namespace Grand.Web.Controllers
             return View(model);
         }
 
-        public virtual async Task<IActionResult> SaveBilling(IFormCollection form)
+        public virtual async Task<IActionResult> SaveBilling([FromServices] AddressSettings addressSettings, IFormCollection form)
         {
             try
             {
                 //validation
-                var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
+                var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
                 await CartValidate(cart);
 
                 string billingAddressId = form["billing_address_id"];
 
-                if (!String.IsNullOrEmpty(billingAddressId))
+                if (!string.IsNullOrEmpty(billingAddressId))
                 {
                     //existing address
                     var address = _workContext.CurrentCustomer.Addresses.FirstOrDefault(a => a.Id == billingAddressId);
-                    if (address == null)
-                        throw new Exception("Address can't be loaded");
-
-                    _workContext.CurrentCustomer.BillingAddress = address;
+                    _workContext.CurrentCustomer.BillingAddress = address ?? throw new Exception("Address can't be loaded");
                     await _customerService.UpdateBillingAddress(address, _workContext.CurrentCustomer.Id);
                 }
                 else
                 {
                     //new address
-                    ModelState.Clear();
                     var model = new CheckoutBillingAddressModel();
                     await TryUpdateModelAsync(model.NewAddress, "BillingNewAddress");
+
+                    ModelState.Clear();
+                    TryValidateModel(model);
 
                     //custom address attributes
                     var customAttributes = await _mediator.Send(new GetParseCustomAddressAttributes() { Form = form });
@@ -559,7 +558,11 @@ namespace Grand.Web.Controllers
                     if (address == null)
                     {
                         //address is not found. create a new one
-                        address = model.NewAddress.ToEntity();
+                        address = 
+                            await _groupService.IsGuest(_workContext.CurrentCustomer) ?
+                            model.NewAddress.ToEntity() : 
+                            model.NewAddress.ToEntity(_workContext.CurrentCustomer, addressSettings);
+
                         address.Attributes = customAttributes;
                         address.CreatedOnUtc = DateTime.UtcNow;
                         address.AddressType = _addressSettings.AddressTypeEnabled ? AddressType.Billing : AddressType.Any;
@@ -590,12 +593,13 @@ namespace Grand.Web.Controllers
             }
         }
 
-        public virtual async Task<IActionResult> SaveShipping(CheckoutShippingAddressModel model, IFormCollection form)
+        public virtual async Task<IActionResult> SaveShipping([FromServices] AddressSettings addressSettings,
+            CheckoutShippingAddressModel model, IFormCollection form)
         {
             try
             {
                 //validation
-                var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
+                var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
                 await CartValidate(cart);
 
                 if (!cart.RequiresShipping())
@@ -652,7 +656,7 @@ namespace Grand.Web.Controllers
 
                 if (!pickupInstore)
                 {
-                    if (!String.IsNullOrEmpty(shippingAddressId))
+                    if (!string.IsNullOrEmpty(shippingAddressId))
                     {
                         //existing address
                         var address = _workContext.CurrentCustomer.Addresses.FirstOrDefault(a => a.Id == shippingAddressId);
@@ -664,9 +668,11 @@ namespace Grand.Web.Controllers
                     }
                     else
                     {
-                        ModelState.Clear();
                         //new address
                         await TryUpdateModelAsync(model.NewAddress, "ShippingNewAddress");
+                        ModelState.Clear();
+                        TryValidateModel(model);
+
                         //custom address attributes
                         var customAttributes = await _mediator.Send(new GetParseCustomAddressAttributes() { Form = form });
                         var customAttributeWarnings = await _addressAttributeParser.GetAttributeWarnings(customAttributes);
@@ -676,12 +682,7 @@ namespace Grand.Web.Controllers
                         }
                         
                         if (!ModelState.IsValid)
-                        {
-                            var errors = ModelState.Values.SelectMany(v => v.Errors);
-                            foreach (var item in errors)
-                            {
-                                string tt = item.ErrorMessage;
-                            }
+                        {        
                             //model is not valid. redisplay the form with errors
                             var shippingAddressModel = await _mediator.Send(new GetShippingAddress()
                             {
@@ -715,7 +716,11 @@ namespace Grand.Web.Controllers
                             model.NewAddress.CountryId);
                         if (address == null)
                         {
-                            address = model.NewAddress.ToEntity();
+                            address =
+                                await _groupService.IsGuest(_workContext.CurrentCustomer) ?
+                                model.NewAddress.ToEntity() :
+                                model.NewAddress.ToEntity(_workContext.CurrentCustomer, addressSettings);
+
                             address.Attributes = customAttributes;
                             address.CreatedOnUtc = DateTime.UtcNow;
                             address.AddressType = _addressSettings.AddressTypeEnabled ? (model.BillToTheSameAddress ? AddressType.Any : AddressType.Shipping) : AddressType.Any;
@@ -728,8 +733,8 @@ namespace Grand.Web.Controllers
                     }
                 }
 
-
-                if (model.BillToTheSameAddress && !pickupInstore)
+                if (model.BillToTheSameAddress && !pickupInstore && 
+                    (_workContext.CurrentCustomer.ShippingAddress.AddressType != AddressType.Shipping))
                 {
                     _workContext.CurrentCustomer.BillingAddress = _workContext.CurrentCustomer.ShippingAddress;
                     await _customerService.UpdateBillingAddress(_workContext.CurrentCustomer.BillingAddress, _workContext.CurrentCustomer.Id);
@@ -761,7 +766,6 @@ namespace Grand.Web.Controllers
                     });
                 }
 
-                //return await LoadStepAfterShippingAddress(cart);
             }
             catch (Exception exc)
             {
@@ -778,7 +782,7 @@ namespace Grand.Web.Controllers
                 var customer = _workContext.CurrentCustomer;
                 var store = _workContext.CurrentStore;
 
-                var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
+                var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
                 await CartValidate(cart);
 
                 if (!cart.RequiresShipping())
@@ -786,13 +790,14 @@ namespace Grand.Web.Controllers
 
                 //parse selected method 
                 string shippingoption = form["shippingoption"];
-                if (String.IsNullOrEmpty(shippingoption))
+                if (string.IsNullOrEmpty(shippingoption))
                     throw new Exception("Selected shipping method can't be parsed");
                 var splittedOption = shippingoption.Split(new[] { "___" }, StringSplitOptions.RemoveEmptyEntries);
                 if (splittedOption.Length != 2)
                     throw new Exception("Selected shipping method can't be parsed");
-                string selectedName = splittedOption[0];
-                string shippingRateProviderSystemName = splittedOption[1];
+                
+                var selectedName = splittedOption[0];
+                var shippingRateProviderSystemName = splittedOption[1];
 
                 //clear shipping option XML/Description
                 await _userFieldService.SaveField(customer, SystemCustomerFieldNames.ShippingOptionAttribute, "", store.Id);
@@ -820,7 +825,7 @@ namespace Grand.Web.Controllers
                 }
 
                 var shippingOption = shippingOptions
-                    .Find(so => !String.IsNullOrEmpty(so.Name) && so.Name.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+                    .Find(so => !string.IsNullOrEmpty(so.Name) && so.Name.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
                 if (shippingOption == null)
                     throw new Exception("Selected shipping method can't be loaded");
 
@@ -833,7 +838,7 @@ namespace Grand.Web.Controllers
                     return await LoadStepAfterShippingMethod(cart);
                 }
 
-                var message = String.Join(", ", warnings.ToArray());
+                var message = string.Join(", ", warnings.ToArray());
                 return Json(new { error = 1, message = message });
             }
             catch (Exception exc)
@@ -848,14 +853,13 @@ namespace Grand.Web.Controllers
             try
             {
                 //validation
-                var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
+                var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
                 await CartValidate(cart);
 
                 string paymentmethod = form["paymentmethod"];
                 //payment method 
-                if (String.IsNullOrEmpty(paymentmethod))
+                if (string.IsNullOrEmpty(paymentmethod))
                     throw new Exception("Selected payment method can't be parsed");
-
 
                 var model = new CheckoutPaymentMethodModel();
                 await TryUpdateModelAsync(model);
@@ -869,7 +873,7 @@ namespace Grand.Web.Controllers
                 }
 
                 //Check whether payment workflow is required
-                bool isPaymentWorkflowRequired = await _mediator.Send(new GetIsPaymentWorkflowRequired() { Cart = cart });
+                var isPaymentWorkflowRequired = await _mediator.Send(new GetIsPaymentWorkflowRequired() { Cart = cart });
                 if (!isPaymentWorkflowRequired)
                 {
                     //payment is not required
@@ -922,7 +926,7 @@ namespace Grand.Web.Controllers
             try
             {
                 //validation
-                var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
+                var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
                 await CartValidate(cart);
 
                 var paymentMethodSystemName = await _workContext.CurrentCustomer.GetUserField<string>(
@@ -981,7 +985,7 @@ namespace Grand.Web.Controllers
             try
             {
                 //validation
-                var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
+                var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.ShoppingCart, ShoppingCartType.Auctions);
                 await CartValidate(cart);
 
                 //prevent 2 orders being placed within an X seconds time frame
@@ -991,7 +995,6 @@ namespace Grand.Web.Controllers
                     Store = _workContext.CurrentStore
                 }))
                     throw new Exception(_translationService.GetResource("Checkout.MinOrderPlacementInterval"));
-
 
                 var placeOrderResult = await _mediator.Send(new PlaceOrderCommand());
                 if (placeOrderResult.Success)
@@ -1051,7 +1054,6 @@ namespace Grand.Web.Controllers
                 if ((await _groupService.IsGuest(_workContext.CurrentCustomer) && !_orderSettings.AnonymousCheckoutAllowed))
                     return Challenge();
 
-
                 var paymentTransaction = await _paymentTransactionService.GetById(paymentTransactionId);
                 if (paymentTransaction == null)
                     return RedirectToRoute("HomePage");
@@ -1087,7 +1089,5 @@ namespace Grand.Web.Controllers
                 return Content(exc.Message);
             }
         }
-
-
     }
 }

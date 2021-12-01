@@ -228,8 +228,8 @@
   <Resource Name="Account.CustomerMerchandiseReturns.Title">
     <Value>Return #{0} - {1}</Value>
   </Resource>
-  <Resource Name="Account.CustomerMerchandiseReturns.Totals">
-    <Value>{0} product(s), {1} total</Value>
+  <Resource Name="Account.CustomerMerchandiseReturns.Total">
+    <Value>Total</Value>
   </Resource>
   <Resource Name="Account.CustomerMerchandiseReturns.UnitPrice">
     <Value>Unit price</Value>
@@ -3825,6 +3825,9 @@
   <Resource Name="Admin.Catalog.ProductTags.Updated">
     <Value>The product tag has been updated successfully.</Value>
   </Resource>
+  <Resource Name="Admin.Catalog.SaveBeforeEdit">
+    <Value>You need to save the entity before you can edit it.</Value>
+  </Resource>
   <Resource Name="admin.catalog.stores.fields.name">
     <Value>Store name</Value>
   </Resource>
@@ -4767,14 +4770,23 @@
   <Resource Name="Admin.Configuration.Permissions.Installed">
     <Value>Missing permissions has been installed</Value>
   </Resource>
-  <Resource Name="Admin.Configuration.Permissions.InstallMissingPermisions">
-    <Value>Install permissions</Value>
-  </Resource>
   <Resource Name="Admin.Configuration.Permissions.Permission">
     <Value>Permission name</Value>
   </Resource>
   <Resource Name="Admin.Configuration.Permissions.Updated">
     <Value>The permissions has been updated successfully.</Value>
+  </Resource>
+  <Resource Name="Admin.Configuration.RobotsTxt.Fields.Name">
+    <Value>Name</Value>
+  </Resource>
+  <Resource Name="Admin.Configuration.RobotsTxt.Fields.Name.Required">
+    <Value>Field name is required</Value>
+  </Resource>
+  <Resource Name="Admin.Configuration.RobotsTxt.Fields.Text">
+    <Value>Content</Value>
+  </Resource>
+  <Resource Name="Admin.Configuration.RobotsTxt.Fields.Text.Required">
+    <Value>Field content is required</Value>
   </Resource>
   <Resource Name="Admin.Configuration.SeNames">
     <Value>SEO Names</Value>
@@ -9599,7 +9611,7 @@
     <Value>Quantity</Value>
   </Resource>
   <Resource Name="Admin.Orders.Products.RecurringPeriod">
-    <Value>[Auto-ship, Every {0} {1}]</Value>
+    <Value>[Auto-ship, Every {0} {1} ({2})]</Value>
   </Resource>
   <Resource Name="Admin.Orders.Products.SKU">
     <Value>SKU</Value>
@@ -10594,9 +10606,6 @@
   <Resource Name="Admin.Settings.Catalog.AllowViewUnpublishedProductPage">
     <Value>Allow viewing of unpublished product details page</Value>
   </Resource>
-  <Resource Name="Admin.Settings.Catalog.AskQuestionEnabled">
-    <Value>'Ask question' enabled</Value>
-  </Resource>
   <Resource Name="Admin.Settings.Catalog.AskQuestionOnProduct">
     <Value>'Ask question on the product page' enabled</Value>
   </Resource>
@@ -10710,6 +10719,9 @@
   </Resource>
   <Resource Name="Admin.Settings.Catalog.ProductReviewPossibleOnlyAfterPurchasing">
     <Value>Product review possible only after purchasing product</Value>
+  </Resource>
+  <Resource Name="Admin.Settings.Catalog.ProductReviewPossibleOnlyOnce">
+    <Value>Product review possible only once by customer</Value>
   </Resource>
   <Resource Name="Admin.Settings.Catalog.ProductReviews">
     <Value>Product reviews</Value>
@@ -10890,6 +10902,9 @@
   </Resource>
   <Resource Name="Admin.Settings.Customer.AddressFormFields.Description">
     <Value>You can create and manage the address form fields available during checkout.</Value>
+  </Resource>
+  <Resource Name="Admin.Settings.Customer.AddressFormFields.DisallowUsersToChangeEmail">
+    <Value>Disallow user change email on the address fields</Value>
   </Resource>
   <Resource Name="Admin.Settings.Customer.AddressFormFields.FaxEnabled">
     <Value>'Fax number' enabled</Value>
@@ -11202,6 +11217,9 @@
   </Resource>
   <Resource Name="Admin.Settings.GeneralCommon.CaptchaShowOnRegistrationPage">
     <Value>Show on registration page</Value>
+  </Resource>
+  <Resource Name="Admin.Settings.GeneralCommon.CaptchaShowOnVendorReviewPage">
+    <Value>Show on vendor reviews page</Value>
   </Resource>
   <Resource Name="Admin.Settings.GeneralCommon.ConvertNonWesternChars">
     <Value>Convert non-western chars</Value>
@@ -12033,6 +12051,9 @@
   <Resource Name="Admin.Settings.Vendor.NotifyVendorAboutNewVendorReviews">
     <Value>Notify about new vendor reviews</Value>
   </Resource>
+  <Resource Name="Admin.Settings.Vendor.NumberOfReview">
+    <Value>Number of review visible on vendor page</Value>
+  </Resource>
   <Resource Name="Admin.Settings.Vendor.ShowVendorOnProductDetailsPage">
     <Value>Show vendor on product details page</Value>
   </Resource>
@@ -12041,6 +12062,9 @@
   </Resource>
   <Resource Name="Admin.Settings.Vendor.VendorReviewPossibleOnlyAfterPurchasing">
     <Value>Vendor review possible only after purchasing product from vendor</Value>
+  </Resource>
+  <Resource Name="Admin.Settings.Vendor.VendorReviewPossibleOnlyOnce">
+    <Value>Vendor review possible only once by customer</Value>
   </Resource>
   <Resource Name="Admin.Settings.Vendor.VendorReviews">
     <Value>Vendor reviews</Value>
@@ -12065,9 +12089,6 @@
   </Resource>
   <Resource Name="Admin.System">
     <Value>System</Value>
-  </Resource>
-  <Resource Name="Admin.System.AdditionsRobotsTxt">
-    <Value>Additions Robots.txt</Value>
   </Resource>
   <Resource Name="Admin.System.APIUsers">
     <Value>Manage api users</Value>
@@ -12267,6 +12288,12 @@
   <Resource Name="Admin.System.Maintenance.DeleteGuests.TotalDeleted">
     <Value>{0} customers were deleted</Value>
   </Resource>
+  <Resource Name="Admin.System.Maintenance.DeleteSystemLog">
+    <Value>Deleting system Log</Value>
+  </Resource>
+  <Resource Name="Admin.System.Maintenance.DeleteSystemLog.Deleted">
+    <Value>Deleted system Log</Value>
+  </Resource>
   <Resource Name="Admin.System.QueuedEmails">
     <Value>Message Queue</Value>
   </Resource>
@@ -12342,8 +12369,11 @@
   <Resource Name="Admin.System.QueuedEmails.Fields.Reference">
     <Value>Reference to the object</Value>
   </Resource>
-  <Resource Name="Admin.System.QueuedEmails.Fields.ReplyToName">
-    <Value>ReplyTo name</Value>
+  <Resource Name="Admin.System.QueuedEmails.Fields.ReplyTo">
+    <Value>Reply To</Value>
+  </Resource>
+    <Resource Name="Admin.System.QueuedEmails.Fields.ReplyToName">
+    <Value>Reply To Name</Value>
   </Resource>
   <Resource Name="Admin.System.QueuedEmails.Fields.SendImmediately">
     <Value>Send immediately</Value>
@@ -12384,9 +12414,6 @@
   <Resource Name="Admin.System.QueuedEmails.List.FromEmail">
     <Value>From address</Value>
   </Resource>
-  <Resource Name="Admin.System.QueuedEmails.List.GoDirectlyToNumber">
-    <Value>Go directly to email #</Value>
-  </Resource>
   <Resource Name="Admin.System.QueuedEmails.List.LoadNotSent">
     <Value>Load not sent emails only</Value>
   </Resource>
@@ -12410,6 +12437,9 @@
   </Resource>
   <Resource Name="Admin.System.QueuedEmails.Updated">
     <Value>The queued email has been updated successfully.</Value>
+  </Resource>
+  <Resource Name="Admin.System.RobotsTxt">
+    <Value>Robots.txt</Value>
   </Resource>
   <Resource Name="Admin.System.Roslyn">
     <Value>Roslyn compilation</Value>
@@ -14226,6 +14256,9 @@
   <Resource Name="Login.TwoFactorAuth.SendCode">
     <Value>Send code</Value>
   </Resource>
+  <Resource Name="Logo">
+    <Value>Logo</Value>
+  </Resource>
   <Resource Name="LoyaltyPoints.CurrentBalance">
     <Value>Your current balance is {0} loyalty points ({1}).</Value>
   </Resource>
@@ -15574,7 +15607,7 @@
     <Value>The product has been added to your product comparison</Value>
   </Resource>
   <Resource Name="Products.ProductHasBeenAddedToCompareList.Link">
-    <Value><![CDATA[The product has been added to your <a href="{0}">product comparison</a>]]></Value>
+    <Value>The product has been added to your product comparison</Value>
   </Resource>
   <Resource Name="Products.ProductHasBeenAddedToTheCart">
     <Value>The product has been added to your shopping cart</Value>
@@ -15780,6 +15813,9 @@
   <Resource Name="Reviews.ProductReviewPossibleOnlyAfterPurchasing">
     <Value>Product can be reviewed only after purchasing it</Value>
   </Resource>
+  <Resource Name="Reviews.ProductReviewPossibleOnlyOnce">
+    <Value>Product can be reviewed only once by customer</Value>
+  </Resource>
   <Resource Name="Reviews.ProductReviewsFor">
     <Value>Product reviews for</Value>
   </Resource>
@@ -15870,11 +15906,11 @@
   <Resource Name="Search.Vendor">
     <Value>Vendor</Value>
   </Resource>
-  <Resource Name="search.voice.annotationsearch.voice.annotation">
+  <Resource Name="search.voice.annotation">
     <Value>Say what do you want to find in our store, i.e Mi Notebook</Value>
   </Resource>
   <Resource Name="search.voice.go">
-    <Value>Go</Value>
+    <Value>go</Value>
   </Resource>
   <Resource Name="search.voice.holdtospeak">
     <Value>Hold to speak</Value>
@@ -15886,10 +15922,10 @@
     <Value>Say something ...</Value>
   </Resource>
   <Resource Name="search.voice.reset">
-    <Value>Reset</Value>
+    <Value>reset</Value>
   </Resource>
   <Resource Name="search.voice.stop">
-    <Value>Stop</Value>
+    <Value>stop</Value>
   </Resource>
   <Resource Name="Shipment.Document">
     <Value>Shipment document {0}</Value>
@@ -15956,6 +15992,9 @@
   </Resource>
   <Resource Name="ShoppingCart.CannotLoadProduct">
     <Value>Product (Id={0}) cannot be loaded</Value>
+  </Resource>
+  <Resource Name="ShoppingCart.CannotMixRecurringProducts">
+    <Value>Your cart has mixed recurring items. Only one recurring type is allowed per order.</Value>
   </Resource>
   <Resource Name="ShoppingCart.CannotMixStandardAndAutoshipProducts">
     <Value>Your cart has standard and auto-ship (recurring) items. Only one product type is allowed per order.</Value>
@@ -16171,7 +16210,7 @@
     <Value>Enter valid recipient name</Value>
   </Resource>
   <Resource Name="ShoppingCart.RecurringPeriod">
-    <Value>[Auto-ship, Every {0} {1}]</Value>
+    <Value>[Auto-ship, Every {0} {1} ({2})]</Value>
   </Resource>
   <Resource Name="ShoppingCart.Remove">
     <Value>Remove</Value>
@@ -16527,6 +16566,15 @@
   <Resource Name="UpgradeSystem.RunUpgrade">
     <Value>Run upgrade</Value>
   </Resource>
+  <Resource Name="Vendor.Address">
+    <Value>Address</Value>
+  </Resource>
+  <Resource Name="Vendor.Description">
+    <Value>Description</Value>
+  </Resource>
+  <Resource Name="Vendor.Reviews">
+    <Value>Reviews</Value>
+  </Resource>
   <Resource Name="VendorReviews.Helpfulness.OnlyRegistered">
     <Value>Only registered customers can set review helpfulness.</Value>
   </Resource>
@@ -16556,6 +16604,9 @@
   </Resource>
   <Resource Name="VendorReviews.VendorReviewPossibleOnlyAfterPurchasing">
     <Value>Vendor can be reviewed only after purchasing a product from this vendor.</Value>
+  </Resource>
+  <Resource Name="VendorReviews.VendorReviewPossibleOnlyOnce">
+    <Value>Vendor can be reviewed only once by customer</Value>
   </Resource>
   <Resource Name="Vendors">
     <Value>Vendors</Value>

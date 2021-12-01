@@ -119,7 +119,7 @@ namespace Grand.Web.Admin.Controllers
                 NewsSettings = newsSettings.ToModel(),
                 KnowledgebaseSettings = knowledgebaseSettings.ToModel()
             };
-            
+
             model.ActiveStore = storeScope;
             return View(model);
         }
@@ -164,7 +164,7 @@ namespace Grand.Web.Admin.Controllers
             var storeScope = await GetActiveStore();
             var vendorSettings = _settingService.LoadSetting<VendorSettings>(storeScope);
             var model = vendorSettings.ToModel();
-            
+
             model.ActiveStore = storeScope;
 
             return View(model);
@@ -176,7 +176,7 @@ namespace Grand.Web.Admin.Controllers
             var storeScope = await GetActiveStore();
             var vendorSettings = _settingService.LoadSetting<VendorSettings>(storeScope);
             vendorSettings = model.ToEntity(vendorSettings);
-            
+
             await _settingService.SaveSetting(vendorSettings, storeScope);
 
             //now clear cache
@@ -557,8 +557,6 @@ namespace Grand.Web.Admin.Controllers
             var model = mediaSettings.ToModel();
             model.ActiveStore = storeScope;
 
-            var mediaStoreSetting = _settingService.LoadSetting<MediaSettings>("");
-            model.PicturesStoredIntoDatabase = mediaStoreSetting.StoreInDb;
             return View(model);
         }
 
@@ -566,10 +564,12 @@ namespace Grand.Web.Admin.Controllers
         public async Task<IActionResult> Media(MediaSettingsModel model)
         {
             //load settings for a chosen store scope
-            var mediaSettings = _settingService.LoadSetting<MediaSettings>();
+            var storeScope = await GetActiveStore();
+
+            var mediaSettings = _settingService.LoadSetting<MediaSettings>(storeScope);
             mediaSettings = model.ToEntity(mediaSettings);
 
-            await _settingService.SaveSetting(mediaSettings);
+            await _settingService.SaveSetting(mediaSettings, storeScope);
 
             //now clear cache
             await ClearCache();
@@ -584,65 +584,6 @@ namespace Grand.Web.Admin.Controllers
 
             Success(_translationService.GetResource("Admin.Configuration.Updated"));
             return RedirectToAction("Media");
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> ChangePictureStorage()
-        {
-            var mediaSettings = _settingService.LoadSetting<MediaSettings>();
-            var storeIdDb = !mediaSettings.StoreInDb;
-            mediaSettings.StoreInDb = storeIdDb;
-
-            //save the new setting value
-            await _settingService.SaveSetting(mediaSettings);
-
-            //save picture
-            await SavePictureStorage(storeIdDb);
-
-            //activity log
-            _ = _customerActivityService.InsertActivity("EditSettings", "",
-                _workContext.CurrentCustomer, HttpContext.Connection?.RemoteIpAddress?.ToString(),
-                _translationService.GetResource("ActivityLog.EditSettings"));
-
-            //now clear cache
-            await ClearCache();
-
-            Success(_translationService.GetResource("Admin.Configuration.Updated"));
-            return RedirectToAction("Media");
-        }
-
-        private async Task SavePictureStorage(bool storeIdDb)
-        {
-            int pageIndex = 0;
-            const int pageSize = 100;
-            try
-            {
-                while (true)
-                {
-                    var pictures = _pictureService.GetPictures(pageIndex, pageSize);
-                    pageIndex++;
-                    if (!pictures.Any())
-                        break;
-
-                    foreach (var picture in pictures)
-                    {
-                        var pictureBinary = await _pictureService.LoadPictureBinary(picture, !storeIdDb);
-                        if (storeIdDb)
-                            await _pictureService.DeletePictureOnFileSystem(picture);
-                        else
-                            //now on file system
-                            await _pictureService.SavePictureInFile(picture.Id, pictureBinary, picture.MimeType);
-                        picture.PictureBinary = storeIdDb ? pictureBinary : new byte[0];
-                        picture.IsNew = true;
-
-                        await _pictureService.UpdatePicture(picture);
-                    }
-                }
-            }
-            finally
-            {
-            }
-
         }
 
         public async Task<IActionResult> Customer()
@@ -687,7 +628,7 @@ namespace Grand.Web.Admin.Controllers
 
             return RedirectToAction("Customer");
         }
-        
+
         public async Task<IActionResult> GeneralCommon()
         {
             var model = new GeneralCommonSettingsModel();
@@ -749,7 +690,7 @@ namespace Grand.Web.Admin.Controllers
             //display menu settings
             var displayMenuItemSettings = _settingService.LoadSetting<MenuItemSettings>(storeScope);
             model.DisplayMenuSettings = displayMenuItemSettings.ToModel();
-          
+
             return View(model);
         }
 
@@ -781,7 +722,7 @@ namespace Grand.Web.Admin.Controllers
 
             //security settings
             var securitySettings = _settingService.LoadSetting<SecuritySettings>(storeScope);
-            
+
             if (securitySettings.AdminAreaAllowedIpAddresses == null)
                 securitySettings.AdminAreaAllowedIpAddresses = new List<string>();
             securitySettings.AdminAreaAllowedIpAddresses.Clear();
@@ -807,7 +748,7 @@ namespace Grand.Web.Admin.Controllers
             var pdfSettings = _settingService.LoadSetting<PdfSettings>(storeScope);
             pdfSettings = model.PdfSettings.ToEntity(pdfSettings);
             await _settingService.SaveSetting(pdfSettings, storeScope);
-           
+
             //googleanalytics settings
             var googleAnalyticsSettings = _settingService.LoadSetting<GoogleAnalyticsSettings>(storeScope);
             googleAnalyticsSettings = model.GoogleAnalyticsSettings.ToEntity(googleAnalyticsSettings);
@@ -910,7 +851,7 @@ namespace Grand.Web.Admin.Controllers
                 throw new ArgumentNullException($"{oryginalFilePath} not exist");
 
         }
-        
+
         public IActionResult AdminSearch()
         {
             var settings = _settingService.LoadSetting<AdminSearchSettings>();
@@ -945,6 +886,10 @@ namespace Grand.Web.Admin.Controllers
                 DaysToCancelUnpaidOrder = settings.DaysToCancelUnpaidOrder,
                 DeleteGuestTaskOlderThanMinutes = settings.DeleteGuestTaskOlderThanMinutes
             };
+
+            //storage settings
+            var storagesettings = _settingService.LoadSetting<StorageSettings>();
+            model.PicturesStoredIntoDatabase = storagesettings.PictureStoreInDb;
 
             //area admin settings
             var adminsettings = _settingService.LoadSetting<AdminAreaSettings>();
@@ -1007,6 +952,68 @@ namespace Grand.Web.Admin.Controllers
             Success(_translationService.GetResource("Admin.Configuration.Updated"));
 
             return await SystemSetting();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ChangePictureStorage()
+        {
+            var storageSettings = _settingService.LoadSetting<StorageSettings>();
+            var storeIdDb = !storageSettings.PictureStoreInDb;
+            storageSettings.PictureStoreInDb = storeIdDb;
+
+            //save the new setting value
+            await _settingService.SaveSetting(storageSettings);
+
+            //save picture
+            await SavePictureStorage(storeIdDb);
+
+            //activity log
+            _ = _customerActivityService.InsertActivity("EditSettings", "",
+                _workContext.CurrentCustomer, HttpContext.Connection?.RemoteIpAddress?.ToString(),
+                _translationService.GetResource("ActivityLog.EditSettings"));
+
+            //now clear cache
+            await ClearCache();
+
+            Success(_translationService.GetResource("Admin.Configuration.Updated"));
+            return RedirectToAction("SystemSetting");
+        }
+
+        private async Task SavePictureStorage(bool storeIdDb)
+        {
+            int pageIndex = 0;
+            const int pageSize = 100;
+            try
+            {
+                while (true)
+                {
+                    var pictures = _pictureService.GetPictures(pageIndex, pageSize);
+                    pageIndex++;
+                    if (!pictures.Any())
+                        break;
+
+                    foreach (var picture in pictures)
+                    {
+                        var pictureBinary = await _pictureService.LoadPictureBinary(picture, !storeIdDb);
+                        if (storeIdDb)
+                            await _pictureService.DeletePictureOnFileSystem(picture);
+                        else
+                        {
+                            //now on file system
+                            if (pictureBinary != null)
+                                await _pictureService.SavePictureInFile(picture.Id, pictureBinary, picture.MimeType);
+                        }
+                        picture.PictureBinary = storeIdDb ? pictureBinary : Array.Empty<byte>();
+                        picture.IsNew = true;
+
+                        await _pictureService.UpdatePicture(picture);
+                    }
+                }
+            }
+            finally
+            {
+            }
+
         }
         #endregion
 

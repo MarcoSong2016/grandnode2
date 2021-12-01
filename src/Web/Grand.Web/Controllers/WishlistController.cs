@@ -11,13 +11,11 @@ using Grand.Domain.Customers;
 using Grand.Domain.Orders;
 using Grand.Infrastructure;
 using Grand.SharedKernel.Extensions;
-using Grand.Web.Common.Controllers;
 using Grand.Web.Common.Filters;
 using Grand.Web.Common.Security.Captcha;
 using Grand.Web.Features.Models.ShoppingCart;
 using Grand.Web.Models.ShoppingCart;
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -79,10 +77,7 @@ namespace Grand.Web.Controllers
             if (customer == null)
                 return RedirectToRoute("HomePage");
 
-            var cart = customer.ShoppingCartItems.Where(sci => sci.ShoppingCartTypeId == ShoppingCartType.Wishlist);
-
-            if (!string.IsNullOrEmpty(_workContext.CurrentStore.Id))
-                cart = cart.LimitPerStore(_shoppingCartSettings.SharedCartBetweenStores, _workContext.CurrentStore.Id);
+            var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.Wishlist);
 
             var model = await _mediator.Send(new GetWishlist() {
                 Cart = cart.ToList(),
@@ -104,7 +99,7 @@ namespace Grand.Web.Controllers
             if (!await _permissionService.Authorize(StandardPermission.EnableWishlist))
                 return RedirectToRoute("HomePage");
 
-            var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.Wishlist).FirstOrDefault(x => x.Id == shoppingcartId);
+            var cart = (await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.Wishlist)).FirstOrDefault(x => x.Id == shoppingcartId);
             if (cart == null)
             {
                 return Json(new
@@ -134,7 +129,7 @@ namespace Grand.Web.Controllers
             {
                 success = !warnings.Any(),
                 warnings = string.Join(", ", warnings),
-                totalproducts = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.Wishlist).Sum(x => x.Quantity),
+                totalproducts = (await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.Wishlist)).Sum(x => x.Quantity),
             });
 
         }
@@ -170,7 +165,7 @@ namespace Grand.Web.Controllers
             if (warnings.Any())
                 return Json(new { success = false, message = string.Join(',', warnings) });
 
-            if(_shoppingCartSettings.MoveItemsFromWishlistToCart)
+            if (_shoppingCartSettings.MoveItemsFromWishlistToCart)
                 await _shoppingCartService.DeleteShoppingCartItem(_workContext.CurrentCustomer, itemCart);
 
             return Json(new { success = true, message = "" });
@@ -197,24 +192,7 @@ namespace Grand.Web.Controllers
             return Json(new { success = true, message = "" });
 
         }
-        [HttpGet]
-        public virtual async Task<IActionResult> EmailWishlist([FromServices] CaptchaSettings captchaSettings)
-        {
-            if (!await _permissionService.Authorize(StandardPermission.EnableWishlist) || !_shoppingCartSettings.EmailWishlistEnabled)
-                return RedirectToRoute("HomePage");
-
-            var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.Wishlist);
-
-            if (!cart.Any())
-                return RedirectToRoute("HomePage");
-
-            var model = new WishlistEmailAFriendModel {
-                YourEmailAddress = _workContext.CurrentCustomer.Email,
-                DisplayCaptcha = captchaSettings.Enabled && captchaSettings.ShowOnEmailWishlistToFriendPage
-            };
-            return View(model);
-        }
-
+        
         [HttpPost]
         [AutoValidateAntiforgeryToken]
         [ValidateCaptcha]
@@ -223,11 +201,11 @@ namespace Grand.Web.Controllers
             [FromServices] CaptchaSettings captchaSettings)
         {
             if (!await _permissionService.Authorize(StandardPermission.EnableWishlist) || !_shoppingCartSettings.EmailWishlistEnabled)
-                return RedirectToRoute("HomePage");
+                return Content("");
 
-            var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.Wishlist);
+            var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id, ShoppingCartType.Wishlist);
             if (!cart.Any())
-                return RedirectToRoute("HomePage");
+                return Content(""); 
 
             //validate CAPTCHA
             if (captchaSettings.Enabled && captchaSettings.ShowOnEmailWishlistToFriendPage && !captchaValid)
@@ -251,12 +229,14 @@ namespace Grand.Web.Controllers
                 model.SuccessfullySent = true;
                 model.Result = _translationService.GetResource("Wishlist.EmailAFriend.SuccessfullySent");
 
-                return View(model);
+                return Json(model);
             }
 
             //If we got this far, something failed, redisplay form
             model.DisplayCaptcha = captchaSettings.Enabled && captchaSettings.ShowOnEmailWishlistToFriendPage;
-            return View(model);
+            model.Result = string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(x => x.ErrorMessage));
+
+            return Json(model);
         }
 
         #endregion

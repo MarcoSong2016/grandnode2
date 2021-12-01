@@ -78,7 +78,6 @@ namespace Grand.Web.Models.Catalog
         public string StockAvailability { get; set; }
         public bool DisplayOutOfStockSubscription { get; set; }
         public bool EmailAFriendEnabled { get; set; }
-        public bool AskQuestionEnabled { get; set; }
         public bool AskQuestionOnProduct { get; set; }
         public ProductAskQuestionSimpleModel ProductAskQuestion { get; set; }
         public bool CompareProductsEnabled { get; set; }
@@ -103,6 +102,7 @@ namespace Grand.Web.Models.Catalog
         public DateTime? EndTime { get; set; }
         public DateTime? EndTimeLocalTime { get; set; }
         public bool AuctionEnded { get; set; }
+        public bool RenderCaptcha { get; set; }
 
         #region Nested Classes
         public partial class ProductBreadcrumbModel : BaseModel

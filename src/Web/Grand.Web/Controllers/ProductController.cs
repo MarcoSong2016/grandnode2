@@ -16,7 +16,6 @@ using Grand.Domain.Media;
 using Grand.Domain.Orders;
 using Grand.Infrastructure;
 using Grand.Infrastructure.Caching.Constants;
-using Grand.SharedKernel.Extensions;
 using Grand.Web.Commands.Models.Products;
 using Grand.Web.Common.Filters;
 using Grand.Web.Common.Security.Captcha;
@@ -135,7 +134,7 @@ namespace Grand.Web.Controllers
             ShoppingCartItem updatecartitem = null;
             if (_shoppingCartSettings.AllowCartItemEditing && !String.IsNullOrEmpty(updatecartitemid))
             {
-                var cart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id);
+                var cart = await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id);
 
                 updatecartitem = cart.FirstOrDefault(x => x.Id == updatecartitemid);
                 //not found?
@@ -485,35 +484,17 @@ namespace Grand.Web.Controllers
         #endregion
 
         #region Product reviews
-        public virtual async Task<IActionResult> ProductReviews(string productId,
-            [FromServices] IGroupService groupService)
-        {
-            var product = await _productService.GetProductById(productId);
-            if (product == null || !product.Published || !product.AllowCustomerReviews)
-                return RedirectToRoute("HomePage");
-
-            var model = await _mediator.Send(new GetProductReviews() {
-                Customer = _workContext.CurrentCustomer,
-                Language = _workContext.WorkingLanguage,
-                Product = product,
-                Store = _workContext.CurrentStore,
-                Size = _catalogSettings.NumberOfReview
-            });
-
-            //only registered users can leave reviews
-            if (await groupService.IsGuest(_workContext.CurrentCustomer) && !_catalogSettings.AllowAnonymousUsersToReviewProduct)
-                ModelState.AddModelError("", _translationService.GetResource("Reviews.OnlyRegisteredUsersCanWriteReviews"));
-            //default value
-            model.AddProductReview.Rating = _catalogSettings.DefaultProductRatingValue;
-            return View(model);
-        }
 
         [HttpPost]
         [AutoValidateAntiforgeryToken]
         [ValidateCaptcha]
-        public virtual async Task<IActionResult> ProductReviews(string productId, ProductReviewsModel model, bool captchaValid,
+        public virtual async Task<IActionResult> ProductReviews(
+            string productId, 
+            ProductReviewsModel model, 
+            bool captchaValid,
             [FromServices] IGroupService groupService,
-            [FromServices] IOrderService orderService)
+            [FromServices] IOrderService orderService,
+            [FromServices] IProductReviewService productReviewService)
         {
             var product = await _productService.GetProductById(productId);
             if (product == null || !product.Published || !product.AllowCustomerReviews)
@@ -533,6 +514,15 @@ namespace Grand.Web.Controllers
             if (_catalogSettings.ProductReviewPossibleOnlyAfterPurchasing &&
                     !(await orderService.SearchOrders(customerId: _workContext.CurrentCustomer.Id, productId: productId, os: (int)OrderStatusSystem.Complete)).Any())
                 ModelState.AddModelError(string.Empty, _translationService.GetResource("Reviews.ProductReviewPossibleOnlyAfterPurchasing"));
+
+            if (_catalogSettings.ProductReviewPossibleOnlyOnce)
+            {
+                var reviews = await productReviewService.GetAllProductReviews(customerId: _workContext.CurrentCustomer.Id, 
+                                                                              productId: productId,
+                                                                              pageSize: 1);
+                if(reviews.Any())
+                    ModelState.AddModelError(string.Empty, _translationService.GetResource("Reviews.ProductReviewPossibleOnlyOnce"));
+            }
 
             if (ModelState.IsValid)
             {
@@ -569,8 +559,14 @@ namespace Grand.Web.Controllers
                 if (!productReview.IsApproved)
                     model.AddProductReview.Result = _translationService.GetResource("Reviews.SeeAfterApproving");
                 else
+                {
                     model.AddProductReview.Result = _translationService.GetResource("Reviews.SuccessfullyAdded");
-
+                    model.ProductReviewOverviewModel = await _mediator.Send(new GetProductReviewOverview() {
+                        Product = product,
+                        Language = _workContext.WorkingLanguage,
+                        Store = _workContext.CurrentStore
+                    });
+                }
                 return View(model);
             }
 
@@ -665,21 +661,6 @@ namespace Grand.Web.Controllers
 
         #region Email a friend
 
-        public virtual async Task<IActionResult> ProductEmailAFriend(string productId)
-        {
-            var product = await _productService.GetProductById(productId);
-            if (product == null || !product.Published || !_catalogSettings.EmailAFriendEnabled)
-                return RedirectToRoute("HomePage");
-
-            var model = new ProductEmailAFriendModel();
-            model.ProductId = product.Id;
-            model.ProductName = product.GetTranslation(x => x.Name, _workContext.WorkingLanguage.Id);
-            model.ProductSeName = product.GetSeName(_workContext.WorkingLanguage.Id);
-            model.YourEmailAddress = _workContext.CurrentCustomer.Email;
-            model.DisplayCaptcha = _captchaSettings.Enabled && _captchaSettings.ShowOnEmailProductToFriendPage;
-            return View(model);
-        }
-
         [HttpPost]
         [AutoValidateAntiforgeryToken]
         [ValidateCaptcha]
@@ -688,7 +669,7 @@ namespace Grand.Web.Controllers
         {
             var product = await _productService.GetProductById(model.ProductId);
             if (product == null || !product.Published || !_catalogSettings.EmailAFriendEnabled)
-                return RedirectToRoute("HomePage");
+                return Content("");
 
             //validate CAPTCHA
             if (_captchaSettings.Enabled && _captchaSettings.ShowOnEmailProductToFriendPage && !captchaValid)
@@ -720,7 +701,7 @@ namespace Grand.Web.Controllers
                 model.SuccessfullySent = true;
                 model.Result = _translationService.GetResource("Products.EmailAFriend.SuccessfullySent");
 
-                return View(model);
+                return Json(model);
             }
 
             //If we got this far, something failed, redisplay form
@@ -728,76 +709,15 @@ namespace Grand.Web.Controllers
             model.ProductName = product.GetTranslation(x => x.Name, _workContext.WorkingLanguage.Id);
             model.ProductSeName = product.GetSeName(_workContext.WorkingLanguage.Id);
             model.DisplayCaptcha = _captchaSettings.Enabled && _captchaSettings.ShowOnEmailProductToFriendPage;
-            return View(model);
+            model.SuccessfullySent = false;
+            model.Result = string.Join(",", ModelState.Values.SelectMany(v => v.Errors).Select(x => x.ErrorMessage));
+
+            return Json(model);
         }
 
         #endregion
 
         #region Ask question
-
-        public virtual async Task<IActionResult> AskQuestion(string productId)
-        {
-            var product = await _productService.GetProductById(productId);
-            if (product == null || !product.Published || !_catalogSettings.AskQuestionEnabled)
-                return NotFound();
-
-            var model = await _mediator.Send(new GetProductAskQuestion() {
-                Product = product,
-                Customer = _workContext.CurrentCustomer,
-                Language = _workContext.WorkingLanguage,
-                Store = _workContext.CurrentStore
-            });
-
-            return View(model);
-        }
-
-        [HttpPost]
-        [AutoValidateAntiforgeryToken]
-        [ValidateCaptcha]
-        public virtual async Task<IActionResult> AskQuestion(ProductAskQuestionModel model, bool captchaValid)
-        {
-            var product = await _productService.GetProductById(model.ProductId);
-            if (product == null || !product.Published || !_catalogSettings.AskQuestionEnabled)
-                return NotFound();
-
-            // validate CAPTCHA
-            if (_captchaSettings.Enabled && _captchaSettings.ShowOnAskQuestionPage && !captchaValid)
-            {
-                ModelState.AddModelError("", _captchaSettings.GetWrongCaptchaMessage(_translationService));
-            }
-
-            if (ModelState.IsValid)
-            {
-                // email
-                await _mediator.Send(new SendProductAskQuestionMessageCommand() {
-                    Customer = _workContext.CurrentCustomer,
-                    Language = _workContext.WorkingLanguage,
-                    Store = _workContext.CurrentStore,
-                    Model = model,
-                    Product = product,
-                    RemoteIpAddress = HttpContext.Connection?.RemoteIpAddress?.ToString()
-                });
-
-                //activity log
-                _ = _customerActivityService.InsertActivity("PublicStore.AskQuestion", _workContext.CurrentCustomer.Id,
-                     _workContext.CurrentCustomer, HttpContext.Connection?.RemoteIpAddress?.ToString(),
-                    _translationService.GetResource("ActivityLog.PublicStore.AskQuestion"));
-
-                model.SuccessfullySent = true;
-                model.ProductSeName = product.GetSeName(_workContext.WorkingLanguage.Id);
-                model.ProductName = product.GetTranslation(x => x.Name, _workContext.WorkingLanguage.Id);
-                model.Result = _translationService.GetResource("Products.AskQuestion.SuccessfullySent");
-                return View(model);
-            }
-
-            // If we got this far, something failed, redisplay form
-            var customer = _workContext.CurrentCustomer;
-            model.Id = product.Id;
-            model.ProductName = product.GetTranslation(x => x.Name, _workContext.WorkingLanguage.Id);
-            model.ProductSeName = product.GetSeName(_workContext.WorkingLanguage.Id);
-            model.DisplayCaptcha = _captchaSettings.Enabled && _captchaSettings.ShowOnAskQuestionPage;
-            return View(model);
-        }
 
         [HttpPost]
         [AutoValidateAntiforgeryToken]
@@ -874,106 +794,14 @@ namespace Grand.Web.Controllers
         protected virtual List<string> GetComparedProductIds()
         {
             //try to get cookie
-            if (!HttpContext.Request.Cookies.TryGetValue(CacheKey.PRODUCTS_COMPARE_COOKIE_NAME, out string productIdsCookie) || string.IsNullOrEmpty(productIdsCookie))
+            if (!HttpContext.Request.Cookies.TryGetValue(CacheKey.PRODUCTS_COMPARE_COOKIE_NAME, out var productIdsCookie) || string.IsNullOrEmpty(productIdsCookie))
                 return new List<string>();
 
             //get array of string product identifiers from cookie
-            var productIds = productIdsCookie.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var productIds = productIdsCookie.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
 
             //return list of int product identifiers
-            return productIds.Select(productId => productId).Distinct().ToList();
-        }
-
-        protected virtual void AddCompareProductsCookie(IEnumerable<string> comparedProductIds)
-        {
-            //delete current cookie if exists
-            HttpContext.Response.Cookies.Delete(CacheKey.PRODUCTS_COMPARE_COOKIE_NAME);
-
-            //create cookie value
-            var comparedProductIdsCookie = string.Join(",", comparedProductIds);
-
-            //create cookie options 
-            var cookieOptions = new CookieOptions {
-                Expires = DateTime.UtcNow.AddHours(CommonHelper.CookieAuthExpires),
-                HttpOnly = true
-            };
-            //add cookie
-            HttpContext.Response.Cookies.Append(CacheKey.PRODUCTS_COMPARE_COOKIE_NAME, comparedProductIdsCookie, cookieOptions);
-        }
-
-        [HttpPost]
-        public virtual async Task<IActionResult> AddProductToCompareList(string productId)
-        {
-            var product = await _productService.GetProductById(productId);
-            if (product == null || !product.Published)
-                return Json(new
-                {
-                    success = false,
-                    comparemessage = "No product found with the specified ID"
-                });
-
-            if (product.ProductTypeId == ProductType.Auction || product.ProductTypeId == ProductType.Reservation)
-                return Json(new
-                {
-                    success = false,
-                    comparemessage = _translationService.GetResource("Products.ProductCantAddToCompareList")
-                });
-
-            if (!_catalogSettings.CompareProductsEnabled)
-                return Json(new
-                {
-                    success = false,
-                    comparemessage = "Product comparison is disabled"
-                });
-
-            //get list of compared product identifiers
-            var comparedProductIds = GetComparedProductIds();
-
-            //whether product identifier to add already exist
-            if (!comparedProductIds.Contains(productId))
-                comparedProductIds.Insert(0, productId);
-
-            //limit list based on the allowed number of products to be compared
-            comparedProductIds = comparedProductIds.Take(_catalogSettings.CompareProductsNumber).ToList();
-
-            //set cookie
-            AddCompareProductsCookie(comparedProductIds);
-
-            //activity log
-            _ = _customerActivityService.InsertActivity("PublicStore.AddToCompareList", productId,
-                 _workContext.CurrentCustomer, HttpContext.Connection?.RemoteIpAddress?.ToString(),
-                _translationService.GetResource("ActivityLog.PublicStore.AddToCompareList"), product.Name);
-
-            return Json(new
-            {
-                success = true,
-                comparemessage = string.Format(_translationService.GetResource("Products.ProductHasBeenAddedToCompareList.Link"), Url.RouteUrl("CompareProducts"))
-            });
-        }
-
-        public virtual IActionResult RemoveProductFromCompareList(string productId)
-        {
-            var product = _productService.GetProductById(productId);
-            if (product == null)
-                return RedirectToRoute("HomePage");
-
-            if (!_catalogSettings.CompareProductsEnabled)
-                return RedirectToRoute("HomePage");
-
-            //get list of compared product identifiers
-            var comparedProductIds = GetComparedProductIds();
-
-            //whether product identifier to remove exists
-            if (!comparedProductIds.Contains(productId))
-                return RedirectToRoute("CompareProducts");
-
-            //it exists, so remove it from list
-            comparedProductIds.Remove(productId);
-
-            //set cookie
-            AddCompareProductsCookie(comparedProductIds); ;
-
-            return RedirectToRoute("CompareProducts");
+            return productIds.Select(productId => productId).Distinct().Take(10).ToList();
         }
 
         public virtual async Task<IActionResult> CompareProducts()
@@ -1008,16 +836,6 @@ namespace Grand.Web.Controllers
             return View(model);
 
         }
-
-        public virtual IActionResult ClearCompareList()
-        {
-            if (!_catalogSettings.CompareProductsEnabled)
-                return RedirectToRoute("HomePage");
-
-            HttpContext.Response.Cookies.Delete(CacheKey.PRODUCTS_COMPARE_COOKIE_NAME);
-
-            return RedirectToRoute("CompareProducts");
-        }
         #endregion
 
         #region Calendar
@@ -1032,7 +850,7 @@ namespace Grand.Web.Controllers
             }
 
             var reservations = query.ToList();
-            var inCart = _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id)
+            var inCart = (await _shoppingCartService.GetShoppingCart(_workContext.CurrentStore.Id))
                 .Where(x => !string.IsNullOrEmpty(x.ReservationId)).ToList();
             foreach (var cartItem in inCart)
             {
